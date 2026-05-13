@@ -8,24 +8,36 @@ let toastId = 0;
 
 const variantStyles = {
   error: {
-    wrap: 'bg-gradient-to-r from-rose-800 via-rose-600 to-red-500 shadow-red-900/30',
+    accent: 'border-l-red-600',
     icon: 'cancel',
-    iconWrap: 'bg-white/25',
+    iconWrap: 'bg-red-50',
+    title: 'text-red-600',
+    iconColor: 'text-red-600',
+    close: 'text-red-600 hover:bg-red-50',
   },
   success: {
-    wrap: 'bg-gradient-to-r from-emerald-700 via-green-600 to-teal-500 shadow-emerald-900/25',
+    accent: 'border-l-emerald-600',
     icon: 'check_circle',
-    iconWrap: 'bg-white/25',
+    iconWrap: 'bg-emerald-50',
+    title: 'text-emerald-700',
+    iconColor: 'text-emerald-600',
+    close: 'text-emerald-600 hover:bg-emerald-50',
   },
   info: {
-    wrap: 'bg-gradient-to-r from-sky-700 via-blue-600 to-indigo-600 shadow-blue-900/25',
+    accent: 'border-l-sky-600',
     icon: 'info',
-    iconWrap: 'bg-white/25',
+    iconWrap: 'bg-sky-50',
+    title: 'text-sky-700',
+    iconColor: 'text-sky-600',
+    close: 'text-sky-600 hover:bg-sky-50',
   },
   warning: {
-    wrap: 'bg-gradient-to-r from-amber-600 via-yellow-500 to-amber-500 shadow-amber-900/25',
+    accent: 'border-l-amber-500',
     icon: 'warning',
-    iconWrap: 'bg-white/25',
+    iconWrap: 'bg-amber-50',
+    title: 'text-amber-700',
+    iconColor: 'text-amber-600',
+    close: 'text-amber-600 hover:bg-amber-50',
   },
 };
 
@@ -34,11 +46,11 @@ function Toast({ toast, onDismiss }) {
   return (
     <div
       role="alert"
-      className={`relative rounded-2xl shadow-xl px-4 py-3 pr-10 text-white min-w-[min(100vw-2rem,360px)] max-w-md border border-white/10 ${v.wrap}`}
+      className={`relative rounded-2xl bg-white shadow-lg shadow-gray-900/10 min-w-[min(100vw-2rem,360px)] max-w-md border border-gray-200/90 border-l-[6px] ${v.accent} pl-3 pr-10 py-3`}
     >
       <button
         type="button"
-        className="absolute top-2 right-2 w-8 h-8 rounded-full hover:bg-white/15 flex items-center justify-center text-white/90 text-lg leading-none"
+        className={`absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center text-lg leading-none opacity-90 ${v.close}`}
         onClick={() => onDismiss(toast.id)}
         aria-label="Dismiss"
       >
@@ -46,12 +58,14 @@ function Toast({ toast, onDismiss }) {
       </button>
       <div className="flex gap-3 items-start">
         <div className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${v.iconWrap}`}>
-          <MaterialIcon name={v.icon} className="text-[22px] text-white" />
+          <MaterialIcon name={v.icon} className={`text-[22px] ${v.iconColor}`} />
         </div>
         <div className="min-w-0 pt-0.5">
-          {toast.title ? <h4 className="font-bold text-sm sm:text-base leading-tight">{toast.title}</h4> : null}
+          {toast.title ? (
+            <h4 className={`font-bold text-sm sm:text-base leading-tight ${v.title}`}>{toast.title}</h4>
+          ) : null}
           {toast.message ? (
-            <p className={`text-sm text-white/95 ${toast.title ? 'mt-1' : ''} leading-snug`}>{toast.message}</p>
+            <p className={`text-sm text-gray-500 ${toast.title ? 'mt-1' : ''} leading-snug`}>{toast.message}</p>
           ) : null}
         </div>
       </div>
