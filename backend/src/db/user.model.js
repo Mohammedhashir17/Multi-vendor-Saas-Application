@@ -21,6 +21,7 @@ const userSchema = new mongoose.Schema(
     role: { type: String, enum: ['customer', 'vendor', 'admin'], default: 'customer' },
     businessName: { type: String, default: '' },
     authProvider: { type: String, enum: ['local', 'google'], default: 'local' },
+    isVerified: { type: Boolean, default: true },
     googleSub: { type: String, sparse: true, unique: true, trim: true },
     /** Vendor trial (Flow: 7–14 days) — default 14 from registration */
     vendorTrialEndsAt: { type: Date },
@@ -32,6 +33,9 @@ const userSchema = new mongoose.Schema(
     /** bcrypt hash of one-time password reset code; cleared after use */
     passwordResetOtpHash: { type: String },
     passwordResetOtpExpiresAt: { type: Date },
+    /** bcrypt hash of signup OTP; present only while local registration is pending */
+    registrationOtpHash: { type: String },
+    registrationOtpExpiresAt: { type: Date },
   },
   { timestamps: true }
 );

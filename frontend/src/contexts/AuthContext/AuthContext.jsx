@@ -40,14 +40,14 @@ export function AuthProvider({ children }) {
 
   const register = useCallback(async (payload) => {
     const res = await api.register(payload);
-    const body = res.data?.data ?? res.data;
-    const u = body?.user || { email: payload.email, name: payload.name, mobile: payload.mobile };
-    setUser(u);
-    localStorage.setItem('baz_user', JSON.stringify(u));
-    const token = body?.token ?? res.data?.token;
-    if (token) localStorage.setItem('baz_token', token);
     return res;
   }, []);
+
+  const verifyRegistrationOtp = useCallback(async (payload) => {
+    const res = await api.verifyRegistrationOtp(payload);
+    persistSession(res, { email: payload.email });
+    return res;
+  }, [persistSession]);
 
   const logout = useCallback(() => {
     setUser(null);
@@ -56,8 +56,8 @@ export function AuthProvider({ children }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, login, googleLogin, register, logout, api }),
-    [user, login, googleLogin, register, logout]
+    () => ({ user, login, googleLogin, register, verifyRegistrationOtp, logout, api }),
+    [user, login, googleLogin, register, verifyRegistrationOtp, logout]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

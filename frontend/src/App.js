@@ -5,6 +5,7 @@ import { AuthProvider } from './contexts/AuthContext/AuthContext';
 import { NotifyProvider } from './contexts/NotifyContext';
 import LoginPage from './components/LoginPage';
 import RegisterPage from './components/RegisterPage';
+import RegisterOtpPage from './components/RegisterOtpPage';
 import ForgotPasswordPage from './components/ForgotPasswordPage';
 import ResetPasswordOtpPage from './components/ResetPasswordOtpPage';
 import HomePage from './components/HomePage';
@@ -32,6 +33,7 @@ export default function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/register/verify" element={<RegisterOtpPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password/verify" element={<ResetPasswordOtpPage />} />
             <Route path="/products" element={<ProductListingPage />} />

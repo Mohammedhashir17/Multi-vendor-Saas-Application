@@ -44,7 +44,10 @@ export async function createUser(fields) {
     vendorTrialEndsAt,
     mobile,
     authProvider,
+    isVerified,
     googleSub,
+    registrationOtpHash,
+    registrationOtpExpiresAt,
   } = fields;
   return UserModel.create({
     email: email.toLowerCase().trim(),
@@ -55,7 +58,10 @@ export async function createUser(fields) {
     businessName: businessName || '',
     vendorTrialEndsAt: vendorTrialEndsAt || undefined,
     authProvider: authProvider || 'local',
+    isVerified: isVerified ?? true,
     googleSub: googleSub || undefined,
+    registrationOtpHash: registrationOtpHash || undefined,
+    registrationOtpExpiresAt: registrationOtpExpiresAt || undefined,
   });
 }
 

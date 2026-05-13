@@ -38,6 +38,28 @@ function signToken(userDoc) {
   );
 }
 
+function buildVendorTrialEndDate() {
+  const vendorTrialEndsAt = new Date();
+  vendorTrialEndsAt.setDate(vendorTrialEndsAt.getDate() + Number(process.env.VENDOR_TRIAL_DAYS || 14));
+  return vendorTrialEndsAt;
+}
+
+async function issueOtpHash() {
+  const otp = String(crypto.randomInt(100000, 1000000));
+  const otpHash = await bcrypt.hash(otp, 10);
+  return { otp, otpHash };
+}
+
+function registrationOtpExpiryDate() {
+  return new Date(Date.now() + Number(process.env.REGISTRATION_OTP_TTL_MS || 900000));
+}
+
+function maybeLogRegistrationOtp(email, otp) {
+  if (String(process.env.LOG_REGISTER_OTP).toLowerCase() === 'true') {
+    logger.notice(moduleName, `registerRouteHandler: dev OTP for ${email}: ${otp}`);
+  }
+}
+
 export const loginRouteHandler = async (req, res, emailOrMobile, password) => {
   try {
     const idHint = String(emailOrMobile || '').includes('@') ? emailOrMobile : '[mobile]';
@@ -47,6 +69,14 @@ export const loginRouteHandler = async (req, res, emailOrMobile, password) => {
     if (!user) {
       logger.notice(moduleName, 'loginRouteHandler: exit http=401', { reason: 'invalid_credentials' });
       return res.status(401).json({ status: 'failure', message: 'Invalid email, mobile, or password' });
+    }
+
+    if (user.authProvider === 'local' && user.isVerified === false) {
+      logger.notice(moduleName, 'loginRouteHandler: exit http=403', { reason: 'email_not_verified' });
+      return res.status(403).json({
+        status: 'failure',
+        message: 'Please verify your email with the OTP before signing in',
+      });
     }
 
     if (!user.passwordHash) {
@@ -85,9 +115,10 @@ export const loginRouteHandler = async (req, res, emailOrMobile, password) => {
 
 export const registerRouteHandler = async (req, res, { email, password, confirmPassword, name, role, businessName, mobile }) => {
   try {
+    const normalizedEmail = String(email || '').toLowerCase().trim();
     const mobileNorm = normalizeMobile(mobile);
-    logger.debug(moduleName, 'registerRouteHandler: enter', { email, name, role, businessName, mobileLen: mobileNorm.length });
-    if (!email || !password) {
+    logger.debug(moduleName, 'registerRouteHandler: enter', { email: normalizedEmail, name, role, businessName, mobileLen: mobileNorm.length });
+    if (!normalizedEmail || !password) {
       logger.notice(moduleName, 'registerRouteHandler: exit http=400', { reason: 'missing_email_or_password' });
       return res.status(400).json({ status: 'failure', message: 'Email and password are required' });
     }
@@ -105,13 +136,15 @@ export const registerRouteHandler = async (req, res, { email, password, confirmP
     }
 
     logger.debug(moduleName, 'registerRouteHandler: duplicate checks');
-    const existingEmail = await findUserByEmail(email);
-    if (existingEmail) {
+    const existingEmail = await findUserByEmail(normalizedEmail);
+    const pendingEmailUser = existingEmail?.authProvider === 'local' && existingEmail?.isVerified === false ? existingEmail : null;
+    if (existingEmail && !pendingEmailUser) {
       logger.notice(moduleName, 'registerRouteHandler: exit http=409', { reason: 'email_exists' });
       return res.status(409).json({ status: 'failure', message: 'An account with this email already exists' });
     }
     const existingMobile = await findUserByMobileNormalized(mobileNorm);
-    if (existingMobile) {
+    const mobileBelongsToPendingEmailUser = pendingEmailUser && existingMobile && String(existingMobile._id) === String(pendingEmailUser._id);
+    if (existingMobile && !mobileBelongsToPendingEmailUser) {
       logger.notice(moduleName, 'registerRouteHandler: exit http=409', { reason: 'mobile_exists' });
       return res.status(409).json({ status: 'failure', message: 'An account with this mobile number already exists' });
     }
@@ -124,13 +157,13 @@ export const registerRouteHandler = async (req, res, { email, password, confirmP
       return res.status(403).json({ status: 'failure', message: 'Cannot self-register as admin' });
     }
 
-    const vendorTrialEndsAt = new Date();
-    vendorTrialEndsAt.setDate(vendorTrialEndsAt.getDate() + Number(process.env.VENDOR_TRIAL_DAYS || 14));
+    const vendorTrialEndsAt = buildVendorTrialEndDate();
 
-    logger.debug(moduleName, 'registerRouteHandler: bcrypt.hash + createUser');
+    logger.debug(moduleName, 'registerRouteHandler: bcrypt.hash + issue signup OTP');
     const passwordHash = await bcrypt.hash(password, 10);
-    const user = await createUser({
-      email,
+    const { otp, otpHash } = await issueOtpHash();
+    const otpExpiresAt = registrationOtpExpiryDate();
+    const commonFields = {
       passwordHash,
       mobile: mobileNorm,
       name,
@@ -138,15 +171,29 @@ export const registerRouteHandler = async (req, res, { email, password, confirmP
       businessName: finalRole === 'vendor' ? businessName || name || '' : '',
       vendorTrialEndsAt: finalRole === 'vendor' ? vendorTrialEndsAt : undefined,
       authProvider: 'local',
-    });
+      isVerified: false,
+      registrationOtpHash: otpHash,
+      registrationOtpExpiresAt: otpExpiresAt,
+    };
 
-    logger.debug(moduleName, 'registerRouteHandler: signToken + respond');
-    const token = signToken(user);
-    logger.info(moduleName, 'registerRouteHandler: exit http=201', { userId: user._id?.toString(), role: finalRole });
-    return res.status(201).json({
+    let user = pendingEmailUser;
+    if (user) {
+      Object.assign(user, commonFields);
+      await user.save();
+    } else {
+      user = await createUser({
+        email: normalizedEmail,
+        ...commonFields,
+      });
+    }
+
+    maybeLogRegistrationOtp(normalizedEmail, otp);
+    logger.info(moduleName, 'registerRouteHandler: exit http=202', { userId: user._id?.toString(), role: finalRole });
+    return res.status(202).json({
       status: 'success',
-      message: 'Registration successful',
-      data: { user: toPublicUser(user), token },
+      message:
+        'Verification code issued. Enter the OTP to finish creating your account. (In local development, set LOG_REGISTER_OTP=true on the API to print the code in the terminal.)',
+      data: { email: normalizedEmail },
     });
   } catch (err) {
     const errorMessage = JSON.stringify(err, Object.getOwnPropertyNames(err));
@@ -156,6 +203,82 @@ export const registerRouteHandler = async (req, res, { email, password, confirmP
       status: 'failure',
       message: 'An error occurred while registering',
     });
+  }
+};
+
+export const verifyRegistrationOtpRouteHandler = async (req, res, { email, otp }) => {
+  try {
+    const normalized = String(email || '').toLowerCase().trim();
+    logger.debug(moduleName, 'verifyRegistrationOtpRouteHandler: enter', { email: normalized });
+    if (!normalized || !String(otp || '').trim()) {
+      return res.status(400).json({ status: 'failure', message: 'Email and verification code are required' });
+    }
+
+    const user = await findUserByEmail(normalized);
+    if (!user || user.authProvider !== 'local' || user.isVerified !== false || !user.registrationOtpHash || !user.registrationOtpExpiresAt) {
+      logger.notice(moduleName, 'verifyRegistrationOtpRouteHandler: no pending registration');
+      return res.status(400).json({ status: 'failure', message: 'No pending registration found for this email' });
+    }
+    if (new Date(user.registrationOtpExpiresAt) < new Date()) {
+      user.registrationOtpHash = undefined;
+      user.registrationOtpExpiresAt = undefined;
+      await user.save();
+      return res.status(400).json({ status: 'failure', message: 'Code expired. Request a new one.' });
+    }
+
+    const ok = await bcrypt.compare(String(otp).trim(), user.registrationOtpHash);
+    if (!ok) {
+      logger.notice(moduleName, 'verifyRegistrationOtpRouteHandler: bad OTP');
+      return res.status(400).json({ status: 'failure', message: 'Invalid verification code' });
+    }
+
+    user.isVerified = true;
+    user.registrationOtpHash = undefined;
+    user.registrationOtpExpiresAt = undefined;
+    await user.save();
+
+    const token = signToken(user);
+    logger.info(moduleName, 'verifyRegistrationOtpRouteHandler: exit http=200', { userId: user._id?.toString() });
+    return res.status(200).json({
+      status: 'success',
+      message: 'Registration successful',
+      data: { user: toPublicUser(user), token },
+    });
+  } catch (err) {
+    logger.error(moduleName, `verifyRegistrationOtpRouteHandler: ${err.message}`);
+    return res.status(500).json({ status: 'failure', message: 'Could not verify registration code' });
+  }
+};
+
+export const resendRegistrationOtpRouteHandler = async (req, res, { email }) => {
+  try {
+    const normalized = String(email || '').toLowerCase().trim();
+    logger.debug(moduleName, 'resendRegistrationOtpRouteHandler: enter', { email: normalized });
+    if (!normalized || !normalized.includes('@')) {
+      return res.status(400).json({ status: 'failure', message: 'Valid email is required' });
+    }
+
+    const user = await findUserByEmail(normalized);
+    if (!user || user.authProvider !== 'local' || user.isVerified !== false) {
+      logger.notice(moduleName, 'resendRegistrationOtpRouteHandler: no pending registration');
+      return res.status(400).json({ status: 'failure', message: 'No pending registration found for this email' });
+    }
+
+    const { otp, otpHash } = await issueOtpHash();
+    user.registrationOtpHash = otpHash;
+    user.registrationOtpExpiresAt = registrationOtpExpiryDate();
+    await user.save();
+
+    maybeLogRegistrationOtp(normalized, otp);
+    logger.info(moduleName, 'resendRegistrationOtpRouteHandler: exit http=200', { userId: user._id?.toString() });
+    return res.status(200).json({
+      status: 'success',
+      message:
+        'A new verification code has been issued. (In local development, set LOG_REGISTER_OTP=true on the API to print the code in the terminal.)',
+    });
+  } catch (err) {
+    logger.error(moduleName, `resendRegistrationOtpRouteHandler: ${err.message}`);
+    return res.status(500).json({ status: 'failure', message: 'Could not resend verification code' });
   }
 };
 

@@ -48,11 +48,7 @@ export default function ForgotPasswordPage() {
             <img alt="" className="absolute inset-0 w-full h-full object-cover opacity-50 mix-blend-overlay" src={img(AUTH_BG)} />
             <div className="relative z-10 p-8 lg:p-12 h-full flex flex-col justify-end text-white bg-gradient-to-t from-[#40034F]/90 to-transparent">
               <h2 className="font-h1 text-white mb-2">Reset password</h2>
-              <p className="text-white/85 text-body-md max-w-md">
-                Enter the email for your account. We’ll issue a one-time code. In local development, set{' '}
-                <code className="text-xs bg-white/10 px-1 rounded">LOG_RESET_OTP=true</code> on the API to print the code in the
-                terminal.
-              </p>
+              <p className="text-white/85 text-body-md max-w-md">Enter the email for your account. We’ll issue a one-time code.</p>
             </div>
           </div>
           <div className="lg:w-1/2 p-8 md:p-12 flex flex-col justify-center max-w-md mx-auto w-full">

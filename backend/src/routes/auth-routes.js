@@ -4,6 +4,8 @@ import { getRequestPayload, redactForLog } from '../common/shared.js';
 import {
   loginRouteHandler,
   registerRouteHandler,
+  verifyRegistrationOtpRouteHandler,
+  resendRegistrationOtpRouteHandler,
   googleAuthRouteHandler,
   logoutRouteHandler,
   requestPasswordResetOtpRouteHandler,
@@ -62,6 +64,36 @@ router.post('/auth/register', async (req, res, next) => {
     await registerRouteHandler(req, res, { email, password, confirmPassword, name, role, businessName, mobile });
     logger.info(moduleName, `${routeId}: registerRouteHandler returned`);
     logger.notice(moduleName, `${routeId} completed`, { email });
+  } catch (error) {
+    const errorMessage = JSON.stringify(error, Object.getOwnPropertyNames(error));
+    logger.error(moduleName, `${routeId} error: ${errorMessage}`, getRequestPayload(req)?.email);
+    next(error);
+  }
+});
+
+router.post('/auth/register/verify', async (req, res, next) => {
+  const routeId = 'POST /auth/register/verify';
+  try {
+    logger.debug(moduleName, `${routeId}: enter`, { method: req.method, path: req.path, body: redactForLog(getRequestPayload(req)) });
+    const payload = getRequestPayload(req);
+    const { email, otp } = payload;
+    await verifyRegistrationOtpRouteHandler(req, res, { email, otp });
+    logger.info(moduleName, `${routeId} completed`, { email });
+  } catch (error) {
+    const errorMessage = JSON.stringify(error, Object.getOwnPropertyNames(error));
+    logger.error(moduleName, `${routeId} error: ${errorMessage}`, getRequestPayload(req)?.email);
+    next(error);
+  }
+});
+
+router.post('/auth/register/resend', async (req, res, next) => {
+  const routeId = 'POST /auth/register/resend';
+  try {
+    logger.debug(moduleName, `${routeId}: enter`, { method: req.method, path: req.path, body: redactForLog(getRequestPayload(req)) });
+    const payload = getRequestPayload(req);
+    const { email } = payload;
+    await resendRegistrationOtpRouteHandler(req, res, { email });
+    logger.info(moduleName, `${routeId} completed`, { email });
   } catch (error) {
     const errorMessage = JSON.stringify(error, Object.getOwnPropertyNames(error));
     logger.error(moduleName, `${routeId} error: ${errorMessage}`, getRequestPayload(req)?.email);

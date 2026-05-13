@@ -28,6 +28,10 @@ class BackendService {
 
   register = (body) => http.post(`/api/${API_VERSION}/auth/register`, body);
 
+  verifyRegistrationOtp = (body) => http.post(`/api/${API_VERSION}/auth/register/verify`, body);
+
+  resendRegistrationOtp = (body) => http.post(`/api/${API_VERSION}/auth/register/resend`, body);
+
   googleAuth = (body) => http.post(`/api/${API_VERSION}/auth/google`, body);
 
   logout = () => http.post(`/api/${API_VERSION}/auth/logout`);

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { MaterialIcon } from '../common/shared';
+import { MaterialIcon, PasswordField } from '../common/shared';
 import { useAuth } from '../contexts/AuthContext/AuthContext';
 import { img } from '../utils/img';
 
@@ -112,7 +112,7 @@ export default function LoginPage() {
           <div className="lg:w-1/2 p-8 md:p-12 flex flex-col justify-center">
             <div className="mb-8">
               <h1 className="font-h1 text-h1 text-on-surface mb-2">Login</h1>
-              <p className="font-body-md text-body-md text-brand-neutral">Use your customer account to shop and track deliveries.</p>
+              <p className="font-body-md text-body-md text-brand-neutral">Sign in to your Bazario account to continue shopping, manage orders, and track deliveries.</p>
             </div>
             {flash ? (
               <p className="mb-4 text-sm text-emerald-800 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2" role="status">
@@ -149,12 +149,11 @@ export default function LoginPage() {
                     Forgot password?
                   </Link>
                 </div>
-                <input
+                <PasswordField
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-md py-md rounded-lg border border-outline-variant bg-surface-container-low focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all font-body-md"
+                  inputClassName="w-full px-md py-md rounded-lg border border-outline-variant bg-surface-container-low focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all font-body-md"
                   placeholder="••••••••"
-                  type="password"
                   autoComplete="current-password"
                   required
                 />

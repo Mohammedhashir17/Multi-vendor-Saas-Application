@@ -1,24 +1,23 @@
 import React, { useRef, useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext/AuthContext';
-import { PasswordField } from '../common/shared';
 import { img } from '../utils/img';
 
 const AUTH_BG =
   'https://lh3.googleusercontent.com/aida-public/AB6AXuBgIviaZECR-wczNYg1EmlzPBXdTJnikvqaDDmYDaQ4DXrCVZqfapWzsGj6lXaXyZ5QSythFNx0jm1zSdzasQa-FHJhpJo9nGpaIW5d0ZYCijXqL-YCFeWoI9yPuPUImCsiFGOmJe-H0PaeTXkFDbokGetIUshA4NUJ6uRvYacXhKjeVwKMjVXWtT0XtGKWlHVu8_WjVwsNEj1pLdyPr624K4FJTY0M63IUoKFeMzMMfA7JIhZOuo7epZp2LARjfAexMdPQBRZxNrM';
 const OTP_LENGTH = 6;
 
-export default function ResetPasswordOtpPage() {
+export default function RegisterOtpPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { api } = useAuth();
-  const initialEmail = location.state?.email || '';
-  const [email, setEmail] = useState(initialEmail);
+  const { verifyRegistrationOtp, api } = useAuth();
+  const initialEmail = String(location.state?.email || '').trim().toLowerCase();
+  const flash = location.state?.message || '';
   const [otpDigits, setOtpDigits] = useState(() => Array(OTP_LENGTH).fill(''));
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
   const inputRefs = useRef([]);
 
   const otp = otpDigits.join('');
@@ -70,37 +69,45 @@ export default function ResetPasswordOtpPage() {
   async function onSubmit(e) {
     e.preventDefault();
     setError('');
-    if (newPassword !== confirmPassword) {
-      setError('Passwords do not match.');
-      return;
-    }
-    if (newPassword.length < 6) {
-      setError('Password must be at least 6 characters.');
-      return;
-    }
-    const em = email.trim().toLowerCase();
-    if (!em.includes('@')) {
-      setError('Enter a valid email.');
+    setStatus('');
+    if (!initialEmail.includes('@')) {
+      setError('Open this page from the register page so we know which email to verify.');
       return;
     }
     if (!/^\d{6}$/.test(otp)) {
-      setError('Enter the 6-digit code.');
+      setError('Enter the 6-digit OTP.');
       return;
     }
+
     setLoading(true);
     try {
-      await api.confirmPasswordReset({
-        email: em,
-        otp,
-        newPassword,
-        confirmPassword,
-      });
-      navigate('/login', { state: { message: 'Password updated. Sign in with your new password.' } });
+      await verifyRegistrationOtp({ email: initialEmail, otp });
+      navigate('/');
     } catch (err) {
-      const msg = err.response?.data?.message || err.message || 'Could not reset password';
+      const msg = err.response?.data?.message || err.message || 'Could not verify OTP';
       setError(msg);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function onResend() {
+    setError('');
+    setStatus('');
+    if (!initialEmail.includes('@')) {
+      setError('Open this page from the register page before requesting a new OTP.');
+      return;
+    }
+
+    setResending(true);
+    try {
+      const res = await api.resendRegistrationOtp({ email: initialEmail });
+      setStatus(res.data?.message || 'A new OTP has been sent.');
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Could not resend OTP';
+      setError(msg);
+    } finally {
+      setResending(false);
     }
   }
 
@@ -121,42 +128,35 @@ export default function ResetPasswordOtpPage() {
           <div className="lg:w-1/2 relative min-h-[180px] lg:min-h-0 bg-[#40034F]">
             <img alt="" className="absolute inset-0 w-full h-full object-cover opacity-50 mix-blend-overlay" src={img(AUTH_BG)} />
             <div className="relative z-10 p-8 lg:p-12 h-full flex flex-col justify-end text-white bg-gradient-to-t from-[#40034F]/90 to-transparent">
-              <h2 className="font-h1 text-white mb-2">Enter your code</h2>
-              <p className="text-white/85 text-body-md max-w-md">
-                Step 2 of 2 — use the 6-digit verification code, then choose a new password.
-              </p>
+              <h2 className="font-h1 text-white mb-2">Verify your email</h2>
+              <p className="text-white/85 text-body-md max-w-md">Step 2 of 2. Enter the 6-digit OTP sent to your email to finish creating your account.</p>
             </div>
           </div>
           <div className="lg:w-1/2 p-8 md:p-12 flex flex-col justify-center max-w-md mx-auto w-full">
             <div className="mb-6">
-              <h1 className="font-h1 text-on-surface mb-2">Verify &amp; reset</h1>
-              <p className="text-on-surface-variant text-body-md">Enter the code and your new password</p>
-              {!initialEmail ? (
-                <p className="mt-2 text-sm text-amber-900 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-                  If you opened this page directly, enter the same email you used to request the code.
-                </p>
-              ) : null}
+              <h1 className="font-h1 text-on-surface mb-2">Enter OTP</h1>
+              <p className="text-on-surface-variant text-body-md">
+                Confirm your email and activate your Bazario account.
+                {initialEmail ? ` OTP sent to ${initialEmail}.` : ''}
+              </p>
             </div>
+            {flash ? (
+              <p className="mb-4 text-sm text-emerald-800 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2" role="status">
+                {flash}
+              </p>
+            ) : null}
+            {status ? (
+              <p className="mb-4 text-sm text-sky-800 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2" role="status">
+                {status}
+              </p>
+            ) : null}
             {error ? (
               <p className="mb-4 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2" role="alert">
                 {error}
               </p>
             ) : null}
-            <form className="space-y-5" onSubmit={onSubmit}>
+            <form className="space-y-6" onSubmit={onSubmit}>
               <div className="space-y-2">
-                <label className="text-label-md font-bold text-on-surface-variant uppercase tracking-tight">Email</label>
-                <input
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border border-outline-variant bg-surface-container-low focus:ring-2 focus:ring-primary outline-none"
-                  placeholder="you@example.com"
-                  type="email"
-                  required
-                  autoComplete="email"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-label-md font-bold text-on-surface-variant uppercase tracking-tight">6-digit code</label>
                 <div className="flex gap-2 sm:gap-3" onPaste={handleOtpPaste}>
                   {otpDigits.map((digit, index) => (
                     <input
@@ -178,41 +178,24 @@ export default function ResetPasswordOtpPage() {
                   ))}
                 </div>
               </div>
-              <div className="space-y-2">
-                <label className="text-label-md font-bold text-on-surface-variant uppercase tracking-tight">New password</label>
-                <PasswordField
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  inputClassName="w-full px-4 py-3 rounded-lg border border-outline-variant bg-surface-container-low focus:ring-2 focus:ring-primary outline-none"
-                  autoComplete="new-password"
-                  required
-                  minLength={6}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-label-md font-bold text-on-surface-variant uppercase tracking-tight">Confirm new password</label>
-                <PasswordField
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  inputClassName="w-full px-4 py-3 rounded-lg border border-outline-variant bg-surface-container-low focus:ring-2 focus:ring-primary outline-none"
-                  autoComplete="new-password"
-                  required
-                  minLength={6}
-                />
-              </div>
               <button
                 type="submit"
                 disabled={loading}
                 className="w-full bg-[#A951C5] hover:bg-[#8d36aa] disabled:opacity-60 text-white font-h3 py-3 rounded-xl shadow-lg transition-all"
               >
-                {loading ? 'Updating…' : 'Update password'}
+                {loading ? 'Verifying…' : 'Verify account'}
+              </button>
+              <button
+                type="button"
+                onClick={onResend}
+                disabled={resending}
+                className="w-full border border-outline-variant hover:border-primary disabled:opacity-60 text-on-surface font-semibold py-3 rounded-xl transition-all"
+              >
+                {resending ? 'Resending…' : 'Resend OTP'}
               </button>
             </form>
             <p className="mt-6 text-center text-body-sm text-on-surface-variant">
-              <Link className="text-primary font-bold hover:underline" to="/forgot-password">
-                Resend code
-              </Link>
-              {' · '}
+              Already verified?{' '}
               <Link className="text-primary font-bold hover:underline" to="/login">
                 Sign in
               </Link>

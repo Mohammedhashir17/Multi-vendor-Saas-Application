@@ -12,6 +12,29 @@ export function MaterialIcon({ name, className = '', style, filled }) {
   );
 }
 
+export function PasswordField({ className = '', inputClassName = '', ...props }) {
+  const [visible, setVisible] = useState(false);
+
+  return (
+    <div className={`group relative ${className}`.trim()}>
+      <input
+        {...props}
+        type={visible ? 'text' : 'password'}
+        className={`${inputClassName} pr-12`.trim()}
+      />
+      <button
+        type="button"
+        onClick={() => setVisible((current) => !current)}
+        className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-on-surface-variant opacity-0 pointer-events-none transition-all group-hover:opacity-100 group-hover:pointer-events-auto hover:text-primary"
+        aria-label={visible ? 'Hide password' : 'Show password'}
+        aria-pressed={visible}
+      >
+        <MaterialIcon name={visible ? 'visibility' : 'visibility_off'} className="text-[20px]" />
+      </button>
+    </div>
+  );
+}
+
 /** Normalize product-like objects for wishlist storage. */
 export function toWishlistItem(p) {
   if (!p) return null;

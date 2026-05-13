@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { MaterialIcon } from '../common/shared';
+import { MaterialIcon, PasswordField } from '../common/shared';
 import { useAuth } from '../contexts/AuthContext/AuthContext';
 import { img } from '../utils/img';
 
@@ -16,6 +16,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -33,12 +34,21 @@ export default function RegisterPage() {
       setError('Enter a valid mobile number (at least 10 digits).');
       return;
     }
+    setLoading(true);
     try {
-      await register({ name, email, mobile, password, confirmPassword, role: 'customer' });
-      navigate('/');
+      const normalizedEmail = email.trim().toLowerCase();
+      const res = await register({ name, email: normalizedEmail, mobile, password, confirmPassword, role: 'customer' });
+      navigate('/register/verify', {
+        state: {
+          email: normalizedEmail,
+          message: res.data?.message || 'We sent a verification code to your email.',
+        },
+      });
     } catch (err) {
       const msg = err.response?.data?.message || err.message || 'Registration failed';
       setError(msg);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -65,7 +75,7 @@ export default function RegisterPage() {
             <img alt="" className="absolute inset-0 w-full h-full object-cover opacity-60 mix-blend-overlay" src={img(AUTH_BG)} />
             <div className="relative z-10 p-8 lg:p-12 h-full flex flex-col justify-end text-white bg-gradient-to-t from-black/50 to-transparent">
               <MaterialIcon name="shopping_bag" className="text-5xl mb-4 opacity-80" />
-              <h2 className="font-h1 text-white mb-4">Shop smarter with one account</h2>
+              <h2 className="font-h1 text-white mb-4">Shop smarter in one platform</h2>
               <p className="text-white/90 font-body-lg max-w-md mb-8">
                 Save addresses, sync your cart, track orders, and check out faster across all your devices.
               </p>
@@ -83,8 +93,8 @@ export default function RegisterPage() {
           </div>
           <div className="lg:w-1/2 p-8 md:p-12 flex flex-col justify-center">
             <div className="mb-8">
-              <h1 className="font-h1 text-on-surface mb-2">Create your account</h1>
-              <p className="text-on-surface-variant text-body-md">Join as a shopper — browse, buy, and manage your orders in one place.</p>
+              <h1 className="font-h1 text-on-surface font-black text-4xl md:text-5xl leading-tight mb-2">Create Account</h1>
+              <p className="text-on-surface-variant text-body-md">Join Bazario today and start shopping from your place.</p>
             </div>
             {error ? (
               <p className="mb-4 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2" role="alert">
@@ -127,31 +137,31 @@ export default function RegisterPage() {
                   autoComplete="tel"
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-label-md font-bold text-on-surface-variant uppercase tracking-tight">Password</label>
-                <input
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border border-outline-variant bg-surface-container-low focus:ring-2 focus:ring-primary outline-none"
-                  placeholder="At least 6 characters"
-                  type="password"
-                  required
-                  minLength={6}
-                  autoComplete="new-password"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-label-md font-bold text-on-surface-variant uppercase tracking-tight">Confirm password</label>
-                <input
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border border-outline-variant bg-surface-container-low focus:ring-2 focus:ring-primary outline-none"
-                  placeholder="Re-enter password"
-                  type="password"
-                  required
-                  minLength={6}
-                  autoComplete="new-password"
-                />
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-label-md font-bold text-on-surface-variant uppercase tracking-tight">Password</label>
+                  <PasswordField
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    inputClassName="w-full px-4 py-3 rounded-lg border border-outline-variant bg-surface-container-low focus:ring-2 focus:ring-primary outline-none"
+                    placeholder="At least 6 characters"
+                    required
+                    minLength={6}
+                    autoComplete="new-password"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-label-md font-bold text-on-surface-variant uppercase tracking-tight">Confirm password</label>
+                  <PasswordField
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    inputClassName="w-full px-4 py-3 rounded-lg border border-outline-variant bg-surface-container-low focus:ring-2 focus:ring-primary outline-none"
+                    placeholder="Re-enter password"
+                    required
+                    minLength={6}
+                    autoComplete="new-password"
+                  />
+                </div>
               </div>
               <div className="flex items-start gap-3">
                 <input className="mt-1 rounded border-outline-variant text-primary focus:ring-primary" type="checkbox" required />
@@ -167,8 +177,12 @@ export default function RegisterPage() {
                   .
                 </p>
               </div>
-              <button type="submit" className="w-full bg-primary-container hover:bg-primary text-white font-h3 py-4 rounded-xl shadow-lg transition-all active:scale-[0.99]">
-                Create account
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-primary-container hover:bg-primary disabled:opacity-60 text-white font-h3 py-4 rounded-xl shadow-lg transition-all active:scale-[0.99]"
+              >
+                {loading ? 'Sending OTP…' : 'Create account'}
               </button>
               <p className="text-center text-on-surface-variant text-body-sm">
                 Already have an account?{' '}
